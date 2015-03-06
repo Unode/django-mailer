@@ -26,6 +26,18 @@ EMPTY_QUEUE_SLEEP = getattr(settings, "MAILER_EMPTY_QUEUE_SLEEP", 30)
 # default behavior is to never wait for the lock to be available.
 LOCK_WAIT_TIMEOUT = getattr(settings, "MAILER_LOCK_WAIT_TIMEOUT", -1)
 
+# Allow sending a fixed/limited amount of emails in each delivery run
+# defaults to None which means send everything in the queue
+EMAIL_MAX_BATCH = getattr(settings, "MAILER_EMAIL_MAX_BATCH", None)
+
+# Stop sending emails in the current round if more than X emails get deferred
+# defaults to None which means keep going regardless
+EMAIL_MAX_DEFERRED = getattr(settings, "MAILER_EMAIL_MAX_DEFERRED", None)
+
+# When delivering, wait some time between emails to avoid server overload
+# defaults to 0 for no waiting
+EMAIL_THROTTLE = getattr(settings, "MAILER_EMAIL_THROTTLE", 0)
+
 
 def prioritize():
     """
@@ -46,6 +58,18 @@ def prioritize():
             yield lp_qs.order_by("when_added")[0]
         if Message.objects.non_deferred().using('default').count() == 0:
             break
+
+
+def _limits_reached(sent, deferred):
+    if EMAIL_MAX_BATCH is not None and sent >= EMAIL_MAX_BATCH:
+        logging.info("EMAIL_MAX_BATCH (%s) reached, "
+                     "stopping for this round", EMAIL_MAX_BATCH)
+        return True
+
+    elif EMAIL_MAX_DEFERRED is not None and deferred >= EMAIL_MAX_DEFERRED:
+        logging.warn("EMAIL_MAX_DEFERRED (%s) reached, "
+                     "stopping for this round", EMAIL_MAX_DEFERRED)
+        return True
 
 
 def send_all():
@@ -94,6 +118,7 @@ def send_all():
                 MessageLog.objects.log(message, 1)  # @@@ avoid using literal result code
                 message.delete()
                 sent += 1
+
             except (socket_error, smtplib.SMTPSenderRefused, smtplib.SMTPRecipientsRefused, smtplib.SMTPAuthenticationError) as err:  # noqa
                 message.defer()
                 logging.info("message deferred due to failure: %s" % err)
@@ -101,6 +126,16 @@ def send_all():
                 deferred += 1
                 # Get new connection, it case the connection itself has an error.
                 connection = None
+
+            # Check if we reached the limits for the current run
+            if _limits_reached(sent, deferred):
+                break
+
+            if EMAIL_THROTTLE:
+                logging.debug("Throttling email delivery. "
+                              "Sleeping %s seconds", EMAIL_THROTTLE)
+                time.sleep(EMAIL_THROTTLE)
+
     finally:
         logging.debug("releasing lock...")
         lock.release()
