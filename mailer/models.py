@@ -1,6 +1,6 @@
 import base64
 import logging
-import pickle
+import json
 
 try:
     from django.utils.timezone import now as datetime_now
@@ -65,7 +65,17 @@ class MessageManager(models.Manager):
 def email_to_db(email):
     # pickle.dumps returns essentially binary data which we need to encode
     # to store in a unicode field.
-    return base64.encodestring(pickle.dumps(email))
+    msg = {
+        "subject": email.subject,
+        "body": email.body,
+        "from_email": email.from_email,
+        "to": email.to,
+        "cc": email.cc,
+        "bcc": email.bcc,
+        "attachments": email.attachments,
+        "headers": email.extra_headers,
+    }
+    return base64.encodestring(json.dumps(msg).encode("ascii"))
 
 
 def db_to_email(data):
@@ -73,18 +83,29 @@ def db_to_email(data):
         return None
     else:
         try:
-            return pickle.loads(base64.decodestring(data.encode("ascii")))
-        except Exception:
-            try:
-                # previous method was to just do pickle.dumps(val)
-                return pickle.loads(data.encode("ascii"))
-            except Exception:
-                return None
+            json_content = base64.decodestring(data.encode("ascii"))
+        except ValueError:
+            # Couldn't decode using base64 or encode using ascii
+            return None
+
+        try:
+            json_content = json_content.decode("ascii")
+        except ValueError:
+            # Invalid JSON, on py3
+            return None
+
+        try:
+            mail = json.loads(json_content)
+        except (ValueError, TypeError):
+            # Invalid JSON data
+            return None
+
+        return EmailMessage(**mail)
 
 
 class Message(models.Model):
 
-    # The actual data - a pickled EmailMessage
+    # The actual data - a json dict containing attributes to EmailMessage
     message_data = models.TextField()
     when_added = models.DateTimeField(default=datetime_now)
     priority = models.CharField(max_length=1, choices=PRIORITIES, default="2")
