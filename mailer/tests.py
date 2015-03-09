@@ -7,6 +7,7 @@ from mailer import send_mail as mailer_send_mail
 from mailer import engine
 
 import smtplib
+import time
 
 
 class TestMailerEmailBackend(object):
@@ -125,3 +126,34 @@ class TestSending(TestCase):
             engine.send_all()
             self.assertEqual(len(mail.outbox), 5)
             self.assertEqual(Message.objects.count(), 0)
+
+    def test_throttling_delivery(self):
+        TIME = 1  # throttle time = 1 second
+
+        with self.settings(MAILER_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend"):
+            # Calculate how long it takes to deliver 2 messages without throttling
+            mailer_send_mail("Subject", "Body", "sender11@example.com", ["recipient@example.com"])
+            mailer_send_mail("Subject", "Body", "sender12@example.com", ["recipient@example.com"])
+            # 3 will be delivered, 2 remain deferred
+            start_time = time.time()
+            engine.send_all()
+            unthrottled_time = time.time() - start_time
+
+            self.assertEqual(len(mail.outbox), 2)
+            self.assertEqual(Message.objects.count(), 0)
+
+        with self.settings(MAILER_EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend", MAILER_EMAIL_THROTTLE=TIME):  # noqa
+            mailer_send_mail("Subject", "Body", "sender13@example.com", ["recipient@example.com"])
+            mailer_send_mail("Subject", "Body", "sender14@example.com", ["recipient@example.com"])
+            # 3 will be delivered, 2 remain deferred
+            start_time = time.time()
+            engine.send_all()
+            throttled_time = time.time() - start_time
+
+            self.assertEqual(len(mail.outbox), 4)
+            self.assertEqual(Message.objects.count(), 0)
+
+        # NOTE This is a bit tricky to test due to possible fluctuations on
+        # execution time. Test may randomly fail
+        # NOTE 2*TIME because 2 emails are sent during the test
+        self.assertAlmostEqual(unthrottled_time, throttled_time - 2*TIME, places=1)
