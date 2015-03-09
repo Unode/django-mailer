@@ -63,8 +63,8 @@ def _limits_reached(sent, deferred):
     EMAIL_MAX_DEFERRED = getattr(settings, "MAILER_EMAIL_MAX_DEFERRED", None)
 
     if EMAIL_MAX_DEFERRED is not None and deferred >= EMAIL_MAX_DEFERRED:
-        logging.warn("EMAIL_MAX_DEFERRED (%s) reached, "
-                     "stopping for this round", EMAIL_MAX_DEFERRED)
+        logging.warning("EMAIL_MAX_DEFERRED (%s) reached, "
+                        "stopping for this round", EMAIL_MAX_DEFERRED)
         return True
 
 
