@@ -94,3 +94,20 @@ details.
 
 .. _pinax documentation: http://pinaxproject.com/docs/dev/deployment.html#sending-mail-and-notices
 
+Controlling the delivery process
+================================
+
+If you wish to have a finer control over the delivery process, which defaults
+to deliver everything in the queue, you can use the following 3 variables
+(default values shown)::
+
+    MAILER_EMAIL_MAX_BATCH = None  # integer or None
+    MAILER_EMAIL_MAX_DEFERRED = None  # integer or None
+    MAILER_EMAIL_THROTTLE = 0  # passed to time.sleep()
+
+These control how many emails are sent successfully before stopping the
+current run `MAILER_EMAIL_MAX_BATCH`, after how many failed/deferred emails
+should it stop `MAILER_EMAIL_MAX_DEFERRED` and how much time to wait between
+each email `MAILER_EMAIL_THROTTLE`.
+
+Unprocessed emails will be evaluated in the following delivery iterations.
