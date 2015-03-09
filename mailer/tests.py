@@ -5,13 +5,12 @@ from mailer.engine import send_all
 
 import smtplib
 
-sent_messages = []
-
 
 class TestMailerEmailBackend(object):
+    outbox = []
+
     def __init__(self, **kwargs):
-        global sent_messages
-        sent_messages = []
+        del self.outbox[:]
 
     def open(self):
         pass
@@ -20,8 +19,7 @@ class TestMailerEmailBackend(object):
         pass
 
     def send_messages(self, email_messages):
-        global sent_messages
-        sent_messages.extend(email_messages)
+        self.outbox.extend(email_messages)
 
 
 class FailingMailerEmailBackend(TestMailerEmailBackend):
