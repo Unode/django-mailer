@@ -50,6 +50,34 @@ def _message_queue(block_size):
         queue = get_block()
 
 
+def _limits_reached(sent, deferred):
+    """
+    Evaluate if any of the queue limits has been reached.
+
+    Returns True if any has been reached.
+    """
+    if settings.EMAIL_MAX_SENT == sent:
+        logger.info("Stopping delivery. MAILER_EMAIL_MAX_SENT "
+                    " (%s) reached." % settings.EMAIL_MAX_SENT)
+        return True
+
+    if settings.EMAIL_MAX_DEFERRED == deferred:
+        logger.warning("Stopping delivery. MAILER_EMAIL_MAX_DEFERRED "
+                       " (%s) reached." % settings.EMAIL_MAX_DEFERRED)
+        return True
+
+
+def _throttle_emails():
+    """
+    When delivering, wait some time between emails
+    """
+    # Ensure EMAIL_THROTTLE is positive
+    if settings.EMAIL_THROTTLE >= 0:
+        logging.debug("Throttling email delivery. "
+                      "Sleeping %s seconds", settings.EMAIL_THROTTLE)
+        time.sleep(settings.EMAIL_THROTTLE)
+
+
 def send_all(block_size=500, backend=None):
     """
     Send all non-deferred messages in the queue.
@@ -97,6 +125,13 @@ def send_all(block_size=500, backend=None):
                 deferred += 1
             elif result == constants.RESULT_SKIPPED:
                 skipped += 1
+
+            if _limits_reached(sent, deferred):
+                break
+
+            # Delay next message based on user settings
+            _throttle_emails()
+
         connection.close()
     finally:
         logger.debug("Releasing lock...")

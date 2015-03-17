@@ -60,3 +60,38 @@ place.
 
 The default value is ``0`` which means to never wait for the lock to be
 available.
+
+
+MAILER_EMAIL_MAX_SENT
+---------------------
+When using the ``send_all`` or ``send_loop`` strategies, control how many
+successful emails are sent before stopping the current delivery round.
+
+If set to a positive integer, unprocessed emails will be evaluated in
+subsequent delivery rounds.
+
+The default value is ``None`` which means deliver all email in the queue in the
+current round.
+
+
+MAILER_EMAIL_MAX_DEFERRED
+-------------------------
+When using the ``send_all`` or ``send_loop`` strategies, control after how many
+deferred emails the current delivery round is stopped.
+
+If set to a positive integer, unprocessed emails will be evaluated in
+subsequent delivery rounds.
+
+The default value is ``None`` which means keep going regardless how many emails
+get deferred.
+
+
+MAILER_EMAIL_THROTTLE
+---------------------
+When using the ``send_all`` or ``send_loop`` strategies, introduce a pause
+between the delivery of every message.
+
+This variable gets passed to ``time.sleep()`` so any floating point value
+should work. A value of ``0.5`` means 500 milliseconds of pause between emails.
+
+The default value is ``0`` which means no pause between messages, in other words, deliver as fast as it can.

@@ -1,9 +1,16 @@
 from django.test import TestCase
-from django_mailer import engine, settings
+from django_mailer import engine, models, settings
 from django_mailer.lockfile import FileLock
+from base import MailerTestCase
 from StringIO import StringIO
 import logging
 import time
+
+try:
+    from django.utils.timezone import now
+except ImportError:
+    import datetime
+    now = datetime.datetime.now
 
 
 class LockTest(TestCase):
@@ -82,3 +89,106 @@ class LockTest(TestCase):
                              'Lock already in place. Exiting.')
         finally:
             time.time = original_time
+
+
+class TestSendConfiguration(MailerTestCase):
+    def setUp(self):
+        super(TestSendConfiguration, self).setUp()
+
+        self._backup = {
+            "EMAIL_MAX_SENT": settings.EMAIL_MAX_SENT,
+            "EMAIL_MAX_DEFERRED": settings.EMAIL_MAX_DEFERRED,
+            "EMAIL_THROTTLE": settings.EMAIL_THROTTLE,
+        }
+        self.test_backend = "django_mailer.testapp.tests.base.TestEmailBackend"
+        self.fail_backend = "django_mailer.testapp.tests.base.FailEmailBackend"
+
+    def tearDown(self):
+        super(TestSendConfiguration, self).tearDown()
+
+        settings.EMAIL_MAX_SENT = self._backup["EMAIL_MAX_SENT"]
+        settings.EMAIL_MAX_DEFERRED = self._backup["EMAIL_MAX_DEFERRED"]
+        settings.EMAIL_THROTTLE = self._backup["EMAIL_THROTTLE"]
+
+    def test_control_max_sent_amount(self):
+        settings.EMAIL_MAX_SENT = 2
+
+        self.queue_message()
+        self.queue_message()
+        self.queue_message()
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 3)
+        self.assertEqual(models.Log.objects.count(), 0)
+
+        engine.send_all(backend=self.test_backend)
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 1)
+        self.assertEqual(models.Log.objects.count(), 2)
+
+        # Send another round which should deliver all remaining messages
+        engine.send_all(backend=self.test_backend)
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 0)
+        self.assertEqual(models.Log.objects.count(), 3)
+
+    def test_control_max_deferred_amount(self):
+        settings.EMAIL_MAX_DEFERRED = 2
+
+        # 2 will get deferred 3 remain undeferred
+        self.queue_message()
+        self.queue_message()
+        self.queue_message()
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 3)
+        self.assertEqual(models.QueuedMessage.objects.deferred().count(), 0)
+        self.assertEqual(models.Log.objects.count(), 0)
+
+        # 2 messages get deferred and 1 remains unprocessed
+        engine.send_all(backend=self.fail_backend)
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 3)
+        self.assertEqual(models.QueuedMessage.objects.deferred().count(), 2)
+        self.assertEqual(models.Log.objects.count(), 2)
+
+        models.QueuedMessage.objects.retry_deferred()
+
+        # All remaining 3 messages get delivered
+        engine.send_all(backend=self.test_backend)
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 0)
+        self.assertEqual(models.QueuedMessage.objects.deferred().count(), 0)
+        self.assertEqual(models.Log.objects.count(), 5)
+
+    def test_throttling_delivery(self):
+        TIME = 1  # throttle time = 1 second
+
+        self.queue_message()
+        self.queue_message()
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 2)
+
+        # 3 will be delivered, 2 remain deferred
+        start_time = time.time()
+        engine.send_all(backend=self.test_backend)
+        unthrottled_time = time.time() - start_time
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 0)
+
+        settings.EMAIL_THROTTLE = TIME
+
+        self.queue_message()
+        self.queue_message()
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 2)
+
+        # 3 will be delivered, 2 remain deferred
+        start_time = time.time()
+        engine.send_all(backend=self.test_backend)
+        # 2*TIME because 2 emails are sent during the test
+        throttled_time = (time.time() - start_time) - 2*TIME
+
+        self.assertEqual(models.QueuedMessage.objects.count(), 0)
+
+        # NOTE This is a bit tricky to test due to possible fluctuations on
+        # execution time. This test may sometimes fail
+        self.assertAlmostEqual(unthrottled_time, throttled_time, places=1)

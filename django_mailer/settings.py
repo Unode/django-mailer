@@ -24,3 +24,17 @@ LOCK_WAIT_TIMEOUT = max(getattr(settings, "MAILER_LOCK_WAIT_TIMEOUT", 0), 0)
 # An optional alternate lock path, potentially useful if you have multiple
 # projects running on the same server.
 LOCK_PATH = getattr(settings, "MAILER_LOCK_PATH", None)
+
+
+# Controls for delivery
+# Allow sending a fixed/limited amount of emails in each delivery run
+# defaults to None which means send everything in the queue
+EMAIL_MAX_SENT = getattr(settings, "MAILER_EMAIL_MAX_SENT", None)
+
+# Stop sending emails in the current round if more than X emails get deferred
+# defaults to None which means keep going regardless
+EMAIL_MAX_DEFERRED = getattr(settings, "MAILER_EMAIL_MAX_DEFERRED", None)
+
+# When delivering, wait some time between emails to avoid server overload
+# defaults to 0 for no waiting
+EMAIL_THROTTLE = getattr(settings, "MAILER_EMAIL_THROTTLE", 0)
