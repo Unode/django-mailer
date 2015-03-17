@@ -2,11 +2,13 @@
 # encoding: utf-8
 # ----------------------------------------------------------------------------
 
+import smtplib
 from django.core import mail
 from django.test import TestCase
 from django_mailer import queue_email_message
 from django.core.mail.backends.base import BaseEmailBackend
 from django.core.mail import backends
+
 
 class FakeConnection(object):
     """
@@ -14,6 +16,9 @@ class FakeConnection(object):
     sending.
 
     """
+    def __init__(self, error=False):
+        self._error = error
+
     def sendmail(self, *args, **kwargs):
         """
         Divert an email to the test buffer.
@@ -23,6 +28,9 @@ class FakeConnection(object):
         # the encoded message.
         message = mail.EmailMessage('SUBJECT', 'BODY', 'FROM', ['TO'])
         mail.outbox.append(message)
+
+        if self._error:
+            raise smtplib.SMTPSenderRefused(1, "BODY", "FROM")
 
 
 class TestEmailBackend(BaseEmailBackend):
@@ -37,6 +45,17 @@ class TestEmailBackend(BaseEmailBackend):
 
     def send_messages(self, email_messages):
         pass
+
+
+class FailEmailBackend(BaseEmailBackend):
+    '''
+    An EmailBackend used to test against bad responses from the email server.
+    Useful to test behavior of deferred emails
+
+    '''
+    def __init__(self, fail_silently=False, **kwargs):
+        super(FailEmailBackend, self).__init__(fail_silently=fail_silently)
+        self.connection = FakeConnection(error=True)
 
 
 class MailerTestCase(TestCase):
