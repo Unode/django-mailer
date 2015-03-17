@@ -58,5 +58,5 @@ A lock is set while the ``send_mail`` command is being run. This controls the
 maximum number of seconds the command should wait if a lock is already in
 place.
 
-The default value is ``-1`` which means to never wait for the lock to be
+The default value is ``0`` which means to never wait for the lock to be
 available.
