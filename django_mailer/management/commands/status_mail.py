@@ -33,7 +33,7 @@ except ImportError:
 
 
 class Command(NoArgsCommand):
-    help = "Returns a strig with the queue status as queued/deferred/seconds"
+    help = "Returns a string with the queue status as queued/deferred/seconds"
 
     def handle_noargs(self, *args, **kwargs):
         # If this is just a count request the just calculate, report and exit.
@@ -42,5 +42,5 @@ class Command(NoArgsCommand):
         oldest = QueuedMessage.objects.non_deferred().order_by('date_queued')[0]
         queue_time = now() - oldest.date_queued.replace(tzinfo=None)
         seconds = (now() - oldest.date_queued.replace(tzinfo=None)).seconds
-        sys.stdout.write('%s/%s/%s\n"' % (queued, deferred, seconds))
+        sys.stdout.write('%s/%s/%s\n' % (queued, deferred, seconds))
         sys.exit()
