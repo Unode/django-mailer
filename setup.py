@@ -14,7 +14,11 @@ setup(
     author='Antoni Aloy',
     author_email='antoni.aloy@gmail.com',
     url='http://github.com/APSL/django-mailer-2',
-    install_requires = ["pyzmail", ],
+    install_requires = [
+        'Django>=1.4',
+        'pyzmail>=1.0.3',
+        'lockfile>=0.8',
+    ],
     packages=[
         'django_mailer',
         'django_mailer.management',
