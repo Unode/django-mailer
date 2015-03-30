@@ -20,9 +20,11 @@ from django_mailer.models import QueuedMessage
 import sys
 try:
     from django.utils.timezone import now
+    naive = False
 except ImportError:
     import datetime
     now = datetime.datetime.now
+    naive = True
 
 try:
     from django.core.mail import get_connection
@@ -40,7 +42,9 @@ class Command(NoArgsCommand):
         queued = QueuedMessage.objects.non_deferred().count()
         deferred = QueuedMessage.objects.deferred().count()
         oldest = QueuedMessage.objects.non_deferred().order_by('date_queued')[0]
-        queue_time = now() - oldest.date_queued.replace(tzinfo=None)
-        seconds = (now() - oldest.date_queued.replace(tzinfo=None)).seconds
+        if naive:
+            seconds = (now() - oldest.date_queued.replace(tzinfo=None)).seconds
+        else:
+            seconds = (now() - oldest.date_queued).seconds
         sys.stdout.write('%s/%s/%s\n' % (queued, deferred, seconds))
         sys.exit()
