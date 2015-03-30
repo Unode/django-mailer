@@ -1,7 +1,7 @@
 from django.core import mail
 from django.core.management import call_command
 from django_mailer import models
-from base import MailerTestCase
+from .base import MailerTestCase
 import datetime
 try:
     from django.utils.timezone import now

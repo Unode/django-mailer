@@ -1,8 +1,8 @@
 from django.test import TestCase
 from django_mailer import engine, models, settings
-from django_mailer.lockfile import FileLock
-from base import MailerTestCase
-from StringIO import StringIO
+from lockfile import FileLock
+from django.utils.six import StringIO
+from .base import MailerTestCase
 import logging
 import time
 
@@ -20,7 +20,7 @@ class LockTest(TestCase):
     """
 
     def setUp(self):
-        # Create somewhere to store the log debug output. 
+        # Create somewhere to store the log debug output.
         self.output = StringIO()
         # Create a log handler which can capture the log debug output.
         self.handler = logging.StreamHandler(self.output)
@@ -30,7 +30,7 @@ class LockTest(TestCase):
         # Add the log handler.
         logger = logging.getLogger('django_mailer')
         logger.addHandler(self.handler)
-        
+
         # Set the LOCK_WAIT_TIMEOUT to the default value.
         self.original_timeout = settings.LOCK_WAIT_TIMEOUT
         settings.LOCK_WAIT_TIMEOUT = 0
@@ -75,6 +75,7 @@ class LockTest(TestCase):
         original_time = time.time
         global time_call_count
         time_call_count = 0
+
         def fake_time():
             global time_call_count
             time_call_count = time_call_count + 1

@@ -61,7 +61,7 @@ def port_used(addr="localhost", port=None):
         return False
 
 
-def wait_for_listen(port, timeout=10, frequency=2.0):
+def wait_for_listen(port, timeout=5, frequency=2.0):
     # timeout = seconds
     # frequency = times per second
     for i in range(int(timeout * frequency)):
