@@ -6,3 +6,4 @@ _*
 /django_mailer_2.egg-info/top_level.txt
 .coverage
 htmlcov
+.tox
