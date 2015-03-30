@@ -4,3 +4,5 @@ _*
 /django_mailer_2.egg-info/PKG-INFO
 /django_mailer_2.egg-info/SOURCES.txt
 /django_mailer_2.egg-info/top_level.txt
+.coverage
+htmlcov
